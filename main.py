@@ -43,7 +43,6 @@ def get_interface_list(output_of_command):
 
     wifi_cards = text_to_parse[1:]
 
-
     found_interface_list = list(str())
     for i in wifi_cards:
         found_interface_list.append(i.split('\t')[0])
