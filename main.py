@@ -97,9 +97,11 @@ def get_monitor_mode_enabled_interface_name(output_of_command):
     
 
 
-def get_devices_on_nearby_networks(output_of_command):
+def get_routers_and_devices_on_nearby_networks(output_of_command):
     ## Takes output of the below command:
     ##  sudo airodump-ng mon0
+    all_found_routers = list()
+    all_found_devices = list()
 
     ##output should be similar to this:
 
@@ -151,7 +153,9 @@ def get_devices_on_nearby_networks(output_of_command):
      BSSID              PWR  Beacons    #Data, #/s  CH  MB   ENC  CIPHER AUTH ESSID
                                                                                                                  
      88:DC:96:0D:FC:60  -73       48       26    1   6  54e. WPA2 CCMP   PSK  DODO                               
-                                                                                                                 
+     88:DC:96:0D:FC:60  -73       48       26    1   6  54e. WPA2 CCMP   PSK  DODO                               
+     88:DC:96:0D:FC:60  -73       48       26    1   6  54e. WPA2 CCMP   PSK  DODO                               
+                                                                                                                     
      BSSID              STATION            PWR   Rate    Lost    Frames  Probe                                   
                                                                                                                  
      88:DC:96:0D:FC:60  80:7A:BF:BB:D8:16  -51    0e- 1      1       27                                           
@@ -159,9 +163,59 @@ def get_devices_on_nearby_networks(output_of_command):
 
     '''
 
-    match = re.search(r"BSSID\s*PWR\s*Beacons\s*#Data,\s*#/s\s*CH\s*MB\s*ENC\s*CIPHER\s*AUTH\s*ESSID(.*)BSSID\s*STATION\s*PWR\s*Rate\s*Lost\s*Frames\s*Probe", text_to_parse,re.MULTILINE|re.DOTALL)
+
+    match = re.search(r"BSSID\s*PWR\s*Beacons\s*#Data,\s*#/s\s*CH\s*MB\s*ENC\s*CIPHER\s*AUTH\s*ESSID\s*(.*)BSSID\s*STATION\s*PWR\s*Rate\s*Lost\s*Frames\s*Probe(.*)", text_to_parse,re.MULTILINE|re.DOTALL)
     if match:
-        print(match.groups())
+        found_routers_info = match.group(1).split('\n')
+        found_devices_info = match.group(2).split('\n')
+
+
+
+        for router_info in found_routers_info:
+            
+                router_info = router_info.split(" ")
+                router_info = filter(None, router_info)
+                if len(router_info) > 0:
+                    
+##                    KEEP THIS FOR REFERENCE
+                    
+##                    router_bssid = router_info[0]
+##                    router_pwr = router_info[1]
+##                    router_beacons = router_info[2]
+##                    router_data = router_info[3]
+##                    router_s = router_info[4]
+##                    router_ch = router_info[5]
+##                    router_mb = router_info[6]
+##                    router_enc = router_info[7]
+##                    router_cipher = router_info[8]
+##                    router_auth = router_info[9]
+##                    router_essid = router_info[10]
+                    
+                    all_found_routers.append(router_info)
+            
+            
+        for device_info in found_devices_info:
+            
+                device_info = device_info.split(" ")
+                device_info = filter(None, device_info)
+                if len(device_info) > 0:
+                    
+##                    KEEP THIS FOR REFERENCE
+                    
+##                    device_bssid = device_info[0]
+##                    device_station = device_info[1]
+##                    device_pwr = device_info[2]
+##                    device_rate = device_info[3]
+##                    device_lost = device_info[4]
+##                    device_frames = device_info[5]
+##                    device_probe = device_info[6]
+
+
+                    all_found_devices.append(device_info)
+
+            
+            
+    return all_found_routers,all_found_devices
 
 
 
