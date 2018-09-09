@@ -2,6 +2,7 @@
 
 #TODO: Check for monitor mode enabled devices before starting
 #TODO: Disable monitor mode on script exit
+#TODO: Refactor code
 
 from tkinter import *
 from tkinter import ttk
