@@ -1,3 +1,8 @@
+#!/usr/bin/python3
+
+#TODO: Check for monitor mode enabled devices before starting
+#TODO: Disable monitor mode on script exit
+
 from tkinter import *
 from tkinter import ttk
 import tkinter as tk
@@ -7,7 +12,6 @@ from PIL import Image,ImageTk
 import time
 import re
 import subprocess
-import tempfile
 import os
 import logging
 import signal
@@ -119,11 +123,11 @@ def parse_monitor_mode_enabled_interface_name(output_of_command):
 
 
 def get_monitor_mode_enabled_interface_using_non_monitor_mode_enabled_interface(interface_to_enable_monitor_mode_on):
-    # enable_monitor_mode_output = run_command_in_shell("airmon-ng start "+interface_to_enable_monitor_mode_on,3)
-    # # return parse_monitor_mode_enabled_interface_name(enable_monitor_mode_output)#TODO: this line can be improved
+    enable_monitor_mode_output = run_command_in_shell("airmon-ng start "+interface_to_enable_monitor_mode_on,3)
+    # return parse_monitor_mode_enabled_interface_name(enable_monitor_mode_output)#TODO: this line can be improved
 
-    # return interface_to_enable_monitor_mode_on+"mon"
-    return "wlp3s0mon"# FOR DEBUG: FIX LATER # uncomment 2 lines above, skip middle one
+    return interface_to_enable_monitor_mode_on+"mon"
+    # return "wlp3s0mon"# FOR DEBUG: FIX LATER # uncomment 2 lines above, skip middle one
 
 def parse_routers_and_devices_on_nearby_networks(output_of_command):
     ## Takes output of the below command:
