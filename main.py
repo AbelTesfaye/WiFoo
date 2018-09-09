@@ -9,7 +9,6 @@ from tkinter import ttk
 import tkinter as tk
 from tkinter import messagebox
 
-from PIL import Image,ImageTk
 import time
 import re
 import subprocess
@@ -479,11 +478,9 @@ class SplashScreen(Frame):
         canvas = Canvas(self,width=w, height=h,bg='#ffffff')
 
 
-        # load the .gif image file
         gif1 = PhotoImage(file="version1.gif")
 
-        # put gif image on canvas
-        # pic's upper left corner (NW) on the canvas is at x=50 y=10
+
         canvas.create_image((0, 0), image=gif1, anchor=NW)
         canvas.image = gif1
 
