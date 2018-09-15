@@ -4,6 +4,7 @@
 
 # - TODO: Check for monitor mode enabled devices before starting
 # - TODO: Make app icon using icon_script, without any external libraries
+# - TODO: Make installation instructions
 # - TODO: Refactor code
 
 
@@ -162,7 +163,7 @@ def parse_monitor_mode_enabled_interface_name(output_of_command):
     '''
     text_to_parse=output_of_command
 
-    match = re.search("\(monitor mode enabled on (.*)\)", text_to_parse)
+    match = re.search("monitor mode vif enabled for .* on .*\](.*)\)", text_to_parse)
     if match:
         found_monitor_mode_interface = match.group(1)
         return found_monitor_mode_interface
@@ -174,10 +175,8 @@ def parse_monitor_mode_enabled_interface_name(output_of_command):
 
 def get_monitor_mode_enabled_interface_using_non_monitor_mode_enabled_interface(interface_to_enable_monitor_mode_on):
     enable_monitor_mode_output = run_command_in_shell("airmon-ng start "+interface_to_enable_monitor_mode_on,3)
-    # return parse_monitor_mode_enabled_interface_name(enable_monitor_mode_output)#TODO: this line can be improved
+    return parse_monitor_mode_enabled_interface_name(enable_monitor_mode_output)#TODO: this line can be improved
 
-    return interface_to_enable_monitor_mode_on+"mon"
-    # return "wlp3s0mon"# FOR DEBUG: FIX LATER # uncomment 2 lines above, skip middle one
 
 def parse_routers_and_devices_on_nearby_networks(output_of_command):
     ## Takes output of the below command:
@@ -568,7 +567,7 @@ class SplashScreen(Frame):
 
         else:
             canvas.create_text(250,150,fill="darkblue",font="Times 20 italic bold",
-                        text="WiFoo is open-source get in from: \nhttps://github.com/abeltesfaye/WiFoo")
+                        text="WiFoo is open-source get it from: \nhttps://github.com/abeltesfaye/WiFoo")
 
         canvas.grid()
 
