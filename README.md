@@ -2,7 +2,7 @@
 
 A super-lightweight UI front-end for [aireplay-ng](https://www.aircrack-ng.org/doku.php?id=aireplay-ng). Disconnects devices from any wifi, even if you are not connected to it.
 
-![WiFoo](https://raw.githubusercontent.com/AbelTesfaye/WiFoo/master/version1.gif)
+![WiFoo](https://raw.githubusercontent.com/AbelTesfaye/WiFoo/master/.hidden folder/wifoo.png)
 
 
 
