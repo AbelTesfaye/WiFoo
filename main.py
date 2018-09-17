@@ -1,18 +1,17 @@
 #!/usr/bin/python3
 
 # + TODO: Disable monitor mode on script exit
+# + TODO: Make app icon using icon_script, without any external libraries
 
 # - TODO: Check for monitor mode enabled devices before starting
-# - TODO: Make app icon using icon_script, without any external libraries
 # - TODO: Make installation instructions
 # - TODO: Refactor code
 
 
 
 
+icon_script = '''\
 
-icon_script = \
-'''
                       .ed"""" """$$$$be.
                     -"           ^""**$$$e.
                   ."                   '$$$c
@@ -60,9 +59,55 @@ import subprocess
 import os
 import logging
 import signal
+import random
 from threading import Thread
 import atexit
 
+
+
+def get_random_colored_ppm_icon(icon):
+  icon_size = 64
+
+
+  header_string = \
+  "P6\n" +  "%s %s\n"%(icon_size,icon_size)+  "255\n"
+
+
+  RED = [255,0,0]
+  GREEN = [0,255,0]
+  YELLOW = [255,255,0]
+  WHITE = [255,255,255]
+  CYAN = [0,255,255]
+  MAGENTA = [255,0,255]
+  CORAL = [255,127,80]
+  BLACK = [0,0,0]
+
+  colors = [RED,GREEN,YELLOW,WHITE,CYAN,MAGENTA,CORAL,BLACK]
+
+  background_color = random.choice(colors)
+  icon_color = random.choice(colors)
+
+  while background_color == icon_color:
+    icon_color = random.choice(colors)
+
+  rgb_data = background_color * (icon_size*icon_size)
+ 
+
+  for i,line in enumerate(icon.split('\n')):
+    for j,c in enumerate(line):
+      if j< icon_size:
+
+        shift = (i)*icon_size*3
+        
+        if c != " ":
+          
+          rgb_data[(shift*2)+(j*3):(shift*2)+(j*3)+3] = icon_color
+          rgb_data[(shift*2)+(j*3) + icon_size*3 : (shift*2)+(j*3)+3 + icon_size*3] = icon_color
+
+
+  
+
+  return header_string.encode() + bytes(rgb_data)
 
 
 
@@ -163,10 +208,11 @@ def parse_monitor_mode_enabled_interface_name(output_of_command):
     '''
     text_to_parse=output_of_command
 
-    match = re.search("monitor mode vif enabled for .* on .*\](.*)\)", text_to_parse)
+    match = re.search("monitor mode vif(?: already)? enabled for .* on .*\](.*)\)", text_to_parse)
     if match:
         found_monitor_mode_interface = match.group(1)
         return found_monitor_mode_interface
+ 
 
     
     return None
@@ -322,7 +368,12 @@ def get_routers_and_devices_on_nearby_networks(monitor_mode_enabled_interface):
 
 class GetRoutersAndDevices:
     def __init__(self, master,chosen_non_monitor_mode_enabled_interface):
+        ppm_icon = get_random_colored_ppm_icon(icon_script)
+        img_icon = PhotoImage(data=ppm_icon)
+        
+        master.tk.call('wm', 'iconphoto', master._w, img_icon) 
 
+     
 
         self.is_blocking = False
         self.selected_devices_indexes = []
@@ -354,7 +405,8 @@ class GetRoutersAndDevices:
         self.wifi_listbox.bind('<<ListboxSelect>>',self.cursor_event_choose_wifi_listbox)
         self.wifi_listbox.pack(fill=BOTH)
         for item in self.all_routers:
-            self.wifi_listbox.insert(END, item)
+            item_listbox_format = item[0] + "    ------>    " + item[-1]
+            self.wifi_listbox.insert(END, item_listbox_format)
             
 
 
@@ -383,7 +435,8 @@ class GetRoutersAndDevices:
             self.router_selected = self.all_routers[self.wifi_listbox.curselection()[0]]
             self.choose_devices_listbox.delete(0,END)
             for item in self.get_devices_connected_to_router(self.router_selected[0], self.all_devices):
-                self.choose_devices_listbox.insert(END, item)
+                item_listbox_format = item[0] + "    ------>    Frames: " + item[-1]
+                self.choose_devices_listbox.insert(END, item_listbox_format)
 
 
 
@@ -446,7 +499,7 @@ class GetRoutersAndDevices:
     def toggle_block_or_permit_devices(self):
         if self.is_blocking:
             if self.permit_all_devices():
-                self.toggle_block_or_permit_button.configure(bg = 'red',text = 'Block selected devices') 
+                self.toggle_block_or_permit_button.configure(bg = 'red',text = 'Deauth selected devices') 
                 self.is_blocking = False
             
 
@@ -477,11 +530,14 @@ class GetRoutersAndDevices:
 
 
 class ChooseInterface:
-    def __init__(self, master):
-        choose_interface_class = self
-        
+    def __init__(self, master):      
         self.master = master
         master.title("Choose interface")
+
+        ppm_icon = get_random_colored_ppm_icon(icon_script)
+        img_icon = PhotoImage(data=ppm_icon)
+        
+        master.tk.call('wm', 'iconphoto', master._w, img_icon) 
 
 
         w = 180
@@ -513,7 +569,7 @@ class ChooseInterface:
 
         
 
-        self.nextbtn = tk.Button(self.master,text = "Next",command = lambda:self.start_enable_monitor_mode_gui(choose_interface_class.cbox.get()))
+        self.nextbtn = tk.Button(self.master,text = "Next",command = lambda:self.start_enable_monitor_mode_gui(self.cbox.get()))
         self.nextbtn.grid(row=3, column=2)
 
 
@@ -603,6 +659,11 @@ class SplashScreen(Frame):
 def main():
     root = Tk()
     root.config(bg="#ffffff")
+
+
+    
+
+
 
     if os.getuid() == 0:
         app = SplashScreen(root)
