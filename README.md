@@ -31,7 +31,7 @@ Anyone is welcome to contribute.
 
 WiFoo has been tested on [aircrack-ng-1.2](http://download.aircrack-ng.org/aircrack-ng-1.2.tar.gz). This is the recommended version you should use. 
 
-The above link includes complete aircrack-ng-1.2 installation instructions
+The above link includes complete aircrack-ng-1.2 source code as well as its installation instructions
 
 
 ### Step 2: Tkinter installation ###
