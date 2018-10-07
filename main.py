@@ -395,10 +395,15 @@ class GetRoutersAndDevices:
         self.choose_devices_listbox = Listbox(self.master,selectmode='multiple')
         selected_devices_indexes=list()
 
+        self.wifi_listbox.configure(background='black',foreground="yellow")
+        self.choose_devices_listbox.configure(background='black',foreground="yellow")
+
 
         self.master.geometry("500x400")
-        choose_wifi = Label(self.master, text='Choose Wifi: ',anchor='nw')   
+        self.master.configure(background='black')
+        choose_wifi = Label(self.master, text='Step 1: Choose Wifi: ',anchor='nw')   
         choose_wifi.pack()
+        choose_wifi.configure(background='black',foreground="yellow")
 
 
 
@@ -411,12 +416,13 @@ class GetRoutersAndDevices:
 
 
 
-        self.toggle_block_or_permit_button = Button(self.master, text="Deauth selected targets", bg='red', command=self.toggle_block_or_permit_devices)
+        self.toggle_block_or_permit_button = Button(self.master, text="Deauth selected devices", background='red', command=self.toggle_block_or_permit_devices)
         self.toggle_block_or_permit_button.pack(side=BOTTOM, fill=X)
 
 
-        choose_devices = Label(self.master, text='Choose Devices: ',anchor='nw')   
+        choose_devices = Label(self.master, text='Step 2: Choose Devices: ',anchor='nw')   
         choose_devices.pack()
+        choose_devices.configure(background='black',foreground="yellow")
 
 
         self.choose_devices_listbox.bind('<<ListboxSelect>>',self.cursor_event_choose_devices_listbox)
@@ -451,7 +457,7 @@ class GetRoutersAndDevices:
         selected_ap_mac = self.router_selected[0]
 
         for i in self.selected_devices_indexes:
-            self.choose_devices_listbox.itemconfig(i,bg='red')
+            self.choose_devices_listbox.itemconfig(i,background='red')
 
             selected_devices_macs.append(self.get_devices_connected_to_router(selected_ap_mac, self.all_devices)[i][1])
             
@@ -490,7 +496,7 @@ class GetRoutersAndDevices:
         print("allowing access to all")
 
         for i,item in enumerate(self.get_devices_connected_to_router(self.router_selected[0], self.all_devices)):
-            self.choose_devices_listbox.itemconfig(i,bg='white')
+            self.choose_devices_listbox.itemconfig(i,background='black')
 
 
         if os.killpg(self.pid_deauth_command, signal.SIGKILL) == None:
@@ -499,13 +505,13 @@ class GetRoutersAndDevices:
     def toggle_block_or_permit_devices(self):
         if self.is_blocking:
             if self.permit_all_devices():
-                self.toggle_block_or_permit_button.configure(bg = 'red',text = 'Deauth selected devices') 
+                self.toggle_block_or_permit_button.configure(background = 'red',text = 'Deauth selected devices') 
                 self.is_blocking = False
             
 
         else:
             if self.block_selected_devices():
-                self.toggle_block_or_permit_button.configure(bg = 'green',text = 'Allow everyone') 
+                self.toggle_block_or_permit_button.configure(background = 'green',text = 'Allow everyone') 
                 self.is_blocking = True
 
         
@@ -533,6 +539,8 @@ class ChooseInterface:
     def __init__(self, master):      
         self.master = master
         master.title("Choose interface")
+        master.resizable(False, False)
+        master.configure(background='black')
 
         ppm_icon = get_random_colored_ppm_icon(icon_script)
         img_icon = PhotoImage(data=ppm_icon)
@@ -557,6 +565,7 @@ class ChooseInterface:
 
         self.label = Label(self.master, text="Select which interface to \nenable monitor mode on: ")
         self.label.grid(row=1, column=2)
+        self.label.configure(background='black',foreground="yellow")
 
         found_interfaces_list = get_interface_list()
         
@@ -564,6 +573,9 @@ class ChooseInterface:
         self.cbox.grid(row=2, column=2)
         self.cbox['values']=found_interfaces_list
         self.cbox.current(0)
+        self.cbox.configure(foreground="black")
+        
+
 
 
 
@@ -571,6 +583,8 @@ class ChooseInterface:
 
         self.nextbtn = tk.Button(self.master,text = "Next",command = lambda:self.start_enable_monitor_mode_gui(self.cbox.get()))
         self.nextbtn.grid(row=3, column=2)
+        self.nextbtn.configure(background='black',foreground="yellow")
+        
 
 
         
@@ -591,7 +605,7 @@ class SplashScreen(Frame):
 
 
 
-        Frame.__init__(self, master,bg='#ffffff')
+        Frame.__init__(self, master,background='#ffffff')
         self.grid()
 
         
@@ -614,7 +628,7 @@ class SplashScreen(Frame):
 
 
 
-        canvas = Canvas(self,width=w, height=h,bg='#ffffff')
+        canvas = Canvas(self,width=w, height=h,background='#ffffff')
 
         version_picture = "version1.gif"
         if os.path.isfile(version_picture):
@@ -630,7 +644,7 @@ class SplashScreen(Frame):
 
         self.label = Label(master, text="Wifoo: version 1.0")
         self.label.grid(row=0, column=0,sticky='se')
-        self.label.config(bg="#ffffff")
+        self.label.config(background="#ffffff")
 
         
         self.update()
@@ -658,7 +672,7 @@ class SplashScreen(Frame):
 
 def main():
     root = Tk()
-    root.config(bg="#ffffff")
+    root.config(background="#ffffff")
 
 
     
