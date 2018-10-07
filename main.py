@@ -2,9 +2,9 @@
 
 # + TODO: Disable monitor mode on script exit
 # + TODO: Make app icon using icon_script, without any external libraries
+# + TODO: Make installation instructions
 
 # - TODO: Check for monitor mode enabled devices before starting
-# - TODO: Make installation instructions
 # - TODO: Refactor code
 
 
