@@ -441,7 +441,7 @@ class GetRoutersAndDevices:
             self.router_selected = self.all_routers[self.wifi_listbox.curselection()[0]]
             self.choose_devices_listbox.delete(0,END)
             for item in self.get_devices_connected_to_router(self.router_selected[0], self.all_devices):
-                item_listbox_format = item[0] + "    ------>    Frames: " + item[-1]
+                item_listbox_format = item[1] + "    ------>    Frames: " + item[-1]
                 self.choose_devices_listbox.insert(END, item_listbox_format)
 
 
